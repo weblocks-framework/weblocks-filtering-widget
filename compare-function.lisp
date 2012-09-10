@@ -1,15 +1,27 @@
 (in-package :weblocks-filtering-widget)
 
+(defun like-expression->regexp (expression)
+  (let ((parts (cl-ppcre:split "\\*" expression)))
+    (format nil ".*~{~A.*~}" (mapcar #'cl-ppcre:quote-meta-chars parts))))
+
+(defun string-like-pattern-p (value1 value2)
+  (if (cl-ppcre:scan (like-expression->regexp value2) value1) t))
+
+(defvar *compare-functions* (list 
+                              :equal #'string=
+                              :like #'string-like-pattern-p))
 (defvar *accessors*)
 
-(defun compare-single-value (filter-value model-instance)
+(defun compare-single-value (filter-value model-instance &optional (compare-functions *compare-functions*))
   (declare (special *accessors*))
-  (let* ((compare-function #'string=)
+  (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
+         (compare-func (or (getf compare-functions compare-function-key)
+                           (error (format nil "Function ~A not found in compare-functions" compare-function-key))))
          (filter-accessor (getf *accessors* (getf filter-value :field)))
          (return 
            (if filter-accessor
              (funcall 
-               compare-function
+               compare-func
                (handler-case 
                  (funcall filter-accessor model-instance)
                  (unbound-slot () nil)) 
@@ -54,7 +66,7 @@
   (assert (compare nil (make-instance 'test-item :name "Test"))) 
 
   ; t
-  (assert (compare (list :value (list :field :name :compare-value "Test") :and nil :or nil) (make-instance 'test-item :name "Test"))) 
+  (assert (compare (list :value (list :field :name :compare-value "Test" :compare-type "equal") :and nil :or nil) (make-instance 'test-item :name "Test"))) 
 
   ; nil
   (assert (not (compare 
