@@ -10,32 +10,38 @@
            (if filter-accessor
              (funcall 
                compare-function
-               (funcall filter-accessor model-instance)
+               (handler-case 
+                 (funcall filter-accessor model-instance)
+                 (unbound-slot () nil)) 
                (getf filter-value :compare-value))
              nil)))
     return)) 
 
-(defun compare-or (filters model-instance)
+(defun compare-or (filters model-instance &optional default)
   (let ((return 
           (if filters 
-            (or (compare-single-value (getf filters :value) model-instance)
-                (compare-and (getf filters :and) model-instance))
-            t)))
+            (or 
+              (compare-or (getf filters :or) model-instance default)
+              (if (compare-single-value (getf filters :value) model-instance)
+                (compare-and (getf filters :and) model-instance t)
+                (compare-and (getf filters :and) model-instance nil)))
+            default)))
     return))
 
-(defun compare-and (filters model-instance)
+(defun compare-and (filters model-instance &optional default)
   (let ((return 
           (if filters
             (and 
-              (compare-single-value (getf filters :value) model-instance)
-              (compare-and (getf filters :and) model-instance)
-              (compare-or (getf filters :or) model-instance))
-            t))) 
+              (compare-and (getf filters :and) model-instance t)
+              (if (compare-single-value (getf filters :value) model-instance)
+                (compare-or (getf filters :or) model-instance t)
+                (compare-or (getf filters :or) model-instance nil)))
+            default))) 
     return))
 
 (defun compare (filters model-instance &optional (accessors *accessors*))
   (let ((*accessors* accessors))
-    (let ((return (compare-and filters model-instance))) 
+    (let ((return (compare-and filters model-instance t))) 
       return)))
 
 (defclass test-item ()
@@ -44,28 +50,52 @@
    (some-other-attr :accessor some-other-attr :initarg :attr)))
 
 (let ((*accessors* (list :name #'test-item-name :age #'test-item-age :attr #'some-other-attr)))
-  (progn
-    (assert (compare nil (make-instance 'test-item :name "Test"))) 
-    (assert (compare (list :value (list :field :name :compare-value "Test") :and nil :or nil) (make-instance 'test-item :name "Test"))) 
-    (assert (not (compare 
-                   (list :value (list :field :name :compare-value "Test-2" :compare-type "equal")) 
-                   (make-instance 'test-item :name "Test")))) 
-    (assert (compare 
-              '(:value (:field :name :compare-value "Test" :compare-type "equal")
-                :and (:value (:field :age :compare-type "equal" :compare-value "Ice age"))
-                :or nil) 
-              (make-instance 'test-item :name "Test" :age "Ice age"))) 
-    (assert (not (compare 
-                   '(:value (:field :name :compare-value "Test" :compare-type "equal")
-                     :and (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
-                   (make-instance 'test-item :name "Test" :age "Ice age")))) 
-    (assert (compare 
-              '(:value (:field :name :compare-value "Test" :compare-type "equal")
-                :or (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
-              (make-instance 'test-item :name "Test" :age "Ice age"))))
-  (assert (not 
-            (compare 
-              '(:value (:field :name :compare-value "Test 2" :compare-type "equal")
-                :or (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
-              (make-instance 'test-item :name "Test" :age "Ice age")))))
+  ; t
+  (assert (compare nil (make-instance 'test-item :name "Test"))) 
+
+  ; t
+  (assert (compare (list :value (list :field :name :compare-value "Test") :and nil :or nil) (make-instance 'test-item :name "Test"))) 
+
+  ; nil
+  (assert (not (compare 
+                 (list :value (list :field :name :compare-value "Test-2" :compare-type "equal")) 
+                 (make-instance 'test-item :name "Test")))) 
+
+  ; (and t t)
+  (assert (compare 
+            '(:value (:field :name :compare-value "Test" :compare-type "equal")
+              :and (:value (:field :age :compare-type "equal" :compare-value "Ice age"))
+              :or nil) 
+            (make-instance 'test-item :name "Test" :age "Ice age"))) 
+
+  ; (and t nil)
+  (assert (not (compare 
+                 '(:value (:field :name :compare-value "Test" :compare-type "equal")
+                   :and (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
+                 (make-instance 'test-item :name "Test" :age "Ice age")))) 
+
+  ; (or t nil)
+  (assert (compare 
+            '(:value (:field :name :compare-value "Test" :compare-type "equal")
+              :or (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
+            (make-instance 'test-item :name "Test" :age "Ice age"))) 
+
+  ; (or nil t)
+  (assert (compare 
+            '(:value (:field :name :compare-value "Test-2" :compare-type "equal")
+              :or (:value (:field :age :compare-type "equal" :compare-value "Ice age"))) 
+            (make-instance 'test-item :name "Test" :age "Ice age")))
+
+  ; (or nil nil) XXX
+  
+  (assert (not (compare 
+                 '(:value (:field :name :compare-value "Test 2" :compare-type "equal")
+                   :or (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
+                 (make-instance 'test-item :name "Test" :age "Ice age"))))
+
+  ; (and nil nil)
+  (assert (not (compare 
+                 '(:value (:field :name :compare-value "Test 2" :compare-type "equal")
+                   :and (:value (:field :age :compare-type "equal" :compare-value "Modern age"))) 
+                 (make-instance 'test-item :name "Test" :age "Ice age")))))
 
