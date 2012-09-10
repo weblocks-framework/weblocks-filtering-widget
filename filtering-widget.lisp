@@ -139,6 +139,8 @@
     (esc (cond 
            ((string= compare-type "equal") " is equal to ")
            ((string= compare-type "like") " is like ")
+           ((string= compare-type "not-like") " is not like ")
+           ((string= compare-type "not-equal") " is not equal to ")
            (t (error (format nil "No such compare type - ~A" compare-type)))))
     (:b 
       (esc (get-filter-value-display-value widget field compare-type compare-value)))))

@@ -7,9 +7,17 @@
 (defun string-like-pattern-p (value1 value2)
   (if (cl-ppcre:scan (like-expression->regexp value2) value1) t))
 
+(defun string-not-like-pattern-p (value1 value2)
+  (not (string-like-pattern-p value1 value2)))
+
+(defun string-not= (str1 str2)
+  (not (string= str1 str2)))
+
 (defvar *compare-functions* (list 
                               :equal #'string=
-                              :like #'string-like-pattern-p))
+                              :like #'string-like-pattern-p 
+                              :not-equal #'string-not=
+                              :not-like #'string-not-like-pattern-p))
 (defvar *accessors*)
 
 (defun compare-single-value (filter-value model-instance &optional (compare-functions *compare-functions*))

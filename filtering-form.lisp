@@ -8,7 +8,12 @@
                                (:type form :persistp nil :buttons '((:submit . "Search") (:cancel . "Cancel")) 
                                 :caption ,(filtering-widget-form-title widget))
                                (field :present-as (dropdown :choices ',(compare-field-form-choices widget)) :requiredp t)
-                               (compare-type :present-as (dropdown :choices '("equal" "like")) :requiredp t)
+                               (compare-type 
+                                 :present-as 
+                                 (dropdown :choices '(("Is like ..." . "like") 
+                                                      ("Is equal to ..." . "equal")
+                                                      ("Is not like ..." . "not-like")
+                                                      ("Is not equal to ..." . "not-equal"))) :requiredp t)
                                (compare-value :present-as input))))
          (form (apply #'make-quickform 
                       view
