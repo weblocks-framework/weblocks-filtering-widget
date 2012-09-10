@@ -12,6 +12,8 @@
     :description "Filtering widget for weblocks framework"
     :depends-on (:weblocks)
     :components ((:file "package")
-                 (:file "filtering-widget" :depends-on ("package"))
-                 (:file "filtering-form" :depends-on ("package"))))
+                 (:file "filtering-widget" :depends-on ("package" "compare-function"))
+                 (:file "filtering-form" :depends-on ("package"))
+                 (:file "compare-function" :depends-on ("package" "util"))
+                 (:file "util" :depends-on ("package"))))
 

@@ -2,5 +2,5 @@
   (:use :cl :weblocks :cl-who)
   (:documentation
     "Filtering widget for weblocks framework")
-  (:export #:filtering-widget #:filtering-form))
+  (:export #:filtering-widget #:filtering-form #:on-query-function))
 

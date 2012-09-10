@@ -1,17 +1,19 @@
 A filtering widget for weblocks.
 
-Currently only visual interface available.
+Filters data text values for equality for any dataseq widget.
 Usage is 
 
-(make-instance 
- 'weblocks-filtering-widget:filtering-widget 
- :form-fields (list 
-     (list 
-      :id :name
-      :caption "Name"
-      :accessor #'person-first-name)
-     (list 
-      :id :last-name 
-      :caption "Last name"
-      :accessor #'person-last-name)))
+(let ((dataseq-instance (make-instance 'gridedit)))
+ (make-instance 
+  'weblocks-filtering-widget:filtering-widget 
+  :dataseq-instance dataseq-instance
+  :form-fields (list 
+    (list 
+     :id :name
+     :caption "Name"
+     :accessor #'person-first-name)
+    (list 
+     :id :last-name 
+     :caption "Last name"
+     :accessor #'person-last-name))))
 

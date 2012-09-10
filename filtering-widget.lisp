@@ -7,7 +7,9 @@
    (add-filter-action)
    (remove-filter-action)
    (form-title :initarg :form-title :initform "Filtering widget" :accessor filtering-widget-form-title)
-   (form-fields :initarg :form-fields)))
+   (form-fields :initarg :form-fields)
+   (dataseq-instance :initarg :dataseq-instance :initform nil)))
+
 
 (defun object->simple-plist (object &rest filters)
   (loop for i in (sb-mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
@@ -16,7 +18,6 @@
                         (slot-value object (sb-mop:slot-definition-name i))
                         "Unbound")))
           (list slot (if (getf filters slot) (funcall (getf filters slot) value) value)))))
-
 (defun get-css-border-radius (radius)
   (format nil "-webkit-border-radius: ~a; -moz-border-radius: ~a; border-radius: ~a;" radius radius radius))
 
@@ -75,20 +76,24 @@
                                              (setf filters nil)
                                              (setf filters (getf filters :and))) 
                                            (setf (slot-value widget 'filter-form-visible) t))
-                                       (with-slots (filter-form-position) widget 
-                                         (setf filters 
-                                               (map-filters 
-                                                 (lambda (item)
-                                                   (when (string= (string (getf item :id)) (getf args :id))
-                                                     (setf (getf item key) (getf (getf item key) key)))
-                                                   item)
-                                                 filters)))))
+                                         (with-slots (filter-form-position) widget 
+                                           (setf filters 
+                                                 (map-filters 
+                                                   (lambda (item)
+                                                     (when (string= (string (getf item :id)) (getf args :id))
+                                                       (setf (getf item key) (getf (getf item key) key)))
+                                                     item)
+                                                   filters)))))
                                      (mark-dirty widget)))))
     #+l(setf filters `(:value nil
                        :id ,(write-to-string (gensym))
                        :and nil
                        :or nil))
     (setf filters nil))
+
+  (if (getf args :dataseq-instance) 
+    (setf (dataseq-on-query (getf args :dataseq-instance)) (on-query-function widget)))
+
   (call-next-method))
 
 (defmethod render-widget-body :around ((widget filtering-widget) &rest args)
@@ -146,15 +151,14 @@
     (:div :style "white-space:nowrap;padding-right:10px;"
      (render-filter-display-value 
        widget
-       (getf (find-form-field-by-string-id widget (getf spec-plist :field)) :caption)
+       (getf (find-form-field-by-id widget (getf spec-plist :field)) :caption)
        (getf spec-plist :compare-type) 
        (getf spec-plist :compare-value)))))
 
-(defmethod find-form-field-by-string-id ((widget filtering-widget) string-id)
-  (let ((keyword-id (intern string-id "KEYWORD")))
-    (loop for i in (slot-value widget 'form-fields)
-          if (equal (getf i :id) keyword-id)
-          return i)))
+(defmethod find-form-field-by-id ((widget filtering-widget) keyword-id)
+  (loop for i in (slot-value widget 'form-fields)
+        if (equal (getf i :id) keyword-id)
+        return i))
 
 (defmethod render-bottom-add-filter-link-or-form ((widget filtering-widget) filter-id filter-type)
   (with-html 
@@ -255,10 +259,14 @@
     widget
     :on-success (lambda (form object)
                   (with-slots (filter-form-position filters) widget 
-                    (let ((new-filter (list :value (object->simple-plist object) 
+                    (let* ((new-filter-value (object->simple-plist object))
+                           (new-filter (list :value  nil
                                             :id (write-to-string (gensym))
                                             :and nil 
                                             :or nil)))
+                      (setf (getf new-filter-value :field) (intern (getf new-filter-value :field) "KEYWORD"))
+                      (setf (getf new-filter :value) new-filter-value)
+
                       (if filters 
                         (setf filters 
                               (map-filters 
@@ -278,3 +286,28 @@
   (loop for i in (slot-value widget 'form-fields) 
         collect (cons (getf i :caption) 
                       (getf i :id))))
+
+(defmethod mark-dirty :around ((widget filtering-widget) &key propagate putp) 
+  (if (slot-boundp widget 'dataseq-instance)
+    (with-slots (dataseq-instance) widget
+      (if dataseq-instance
+        (mark-dirty dataseq-instance)))) 
+  (call-next-method))
+
+(defmethod form-fields-accessors-list ((widget filtering-widget))
+  (with-slots (form-fields) widget
+    (loop for i in form-fields append (list (getf i :id) (getf i :accessor)))))
+
+(defmethod on-query-function ((widget filtering-widget))
+  (lambda (obj order limit &key countp)
+    (let ((values 
+            (funcall 
+              (if countp #'count-by #'find-by)
+              (dataseq-data-class obj)
+              (lambda (item)
+                (compare (slot-value widget 'filters) item 
+                         (form-fields-accessors-list widget)))
+              :order-by order
+              :range limit 
+              :store (dataseq-class-store obj))))
+      values)))
