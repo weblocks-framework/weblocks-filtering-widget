@@ -10,7 +10,6 @@
    (form-fields :initarg :form-fields)
    (dataseq-instance :initarg :dataseq-instance :initform nil)))
 
-
 (defun object->simple-plist (object &rest filters)
   (loop for i in (sb-mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
         (let* ((slot (intern (string (sb-mop:slot-definition-name i)) "KEYWORD"))
@@ -18,6 +17,7 @@
                         (slot-value object (sb-mop:slot-definition-name i))
                         "Unbound")))
           (list slot (if (getf filters slot) (funcall (getf filters slot) value) value)))))
+
 (defun get-css-border-radius (radius)
   (format nil "-webkit-border-radius: ~a; -moz-border-radius: ~a; border-radius: ~a;" radius radius radius))
 
@@ -25,15 +25,15 @@
   (concatenate 'string (string-right-trim ";" str) ";" (get-css-border-radius radius)))
 
 (defun map-filters (callback filters)
-
-  (when (getf filters :value)
-    (funcall callback filters)
-    (setf (getf filters :and)
-          (map-filters callback (getf filters :and)))
-    (setf (getf filters :or)
-          (map-filters callback (getf filters :or))))
-
-  filters)
+  (loop for i in filters collect
+        (if (getf i :value)
+          (progn 
+            (setf (getf i :and)
+                  (remove-if #'null (map-filters callback (getf i :and))))
+            (setf (getf i :or)
+                  (remove-if #'null (map-filters callback (getf i :or))))
+            (funcall callback i))
+          i)))
 
 (defmethod filter-form-on-element-p ((widget filtering-widget) filter-id filter-type)
   (with-slots (filter-form-visible filter-form-position) widget 
@@ -48,43 +48,35 @@
                                   (string filter-type)))))
       is-needed-element)))
 
-(defmacro with-valid-filter-type (args &body body)
-  `(when (and 
-           (find (getf args :filter-type) '("AND" "OR") :test #'string=))
-     ,@body))
-
 (defmethod initialize-instance :around ((widget filtering-widget) &rest args)
   (with-slots (add-filter-action filters remove-filter-action) widget
     (setf add-filter-action (make-action 
-                              (lambda (&rest args)
-                                (with-valid-filter-type 
-                                  args 
-                                  (when (getf args :id)
-                                    (with-slots (filter-form-visible filter-form-position) widget 
-                                      (setf filter-form-visible t)
+                              (lambda (&rest args &key id &allow-other-keys)
+                                (with-slots (filter-form-visible filter-form-position) widget 
+                                  (setf filter-form-visible t)
+                                  (if (getf args :id)
+                                    (progn 
                                       (setf filter-form-position 
                                             (cons (getf args :id) (getf args :filter-type)))
+
                                       (mark-dirty widget)))))))
     (setf remove-filter-action (make-action 
                                  (lambda (&rest args)
-                                   (with-valid-filter-type
-                                     (getf args :id)
-                                     (let ((key (intern (getf args :filter-type) "KEYWORD")))
-                                       (if (string= "NIL" (getf args :id))
-                                         (progn
-                                           (if (equal key :and)
-                                             (setf filters nil)
-                                             (setf filters (getf filters :and))) 
-                                           (setf (slot-value widget 'filter-form-visible) t))
-                                         (with-slots (filter-form-position) widget 
-                                           (setf filters 
-                                                 (map-filters 
-                                                   (lambda (item)
-                                                     (when (string= (string (getf item :id)) (getf args :id))
-                                                       (setf (getf item key) (getf (getf item key) key)))
-                                                     item)
-                                                   filters)))))
-                                     (mark-dirty widget)))))
+                                   (with-slots (filter-form-position filter-form-visible filters) widget 
+                                     (when (or (string= (getf args :id) "NIL") (and (not (getf filters :and)) (not (getf filters :or))))
+                                       (setf filter-form-visible t)
+                                       (setf filters nil))
+                                     (setf filters 
+                                           (car (map-filters 
+                                                  (lambda (item)
+                                                    (when (string= (string (getf item :id)) (getf args :id))
+                                                      (let ((and-items (getf item :and)))
+                                                        (setf item (first and-items))
+                                                        (when (cdr and-items)
+                                                          (setf (getf item :and) (cdr and-items)))))
+                                                    item)
+                                                  (list filters)))))
+                                   (mark-dirty widget))))
     #+l(setf filters `(:value nil
                        :id ,(write-to-string (gensym))
                        :and nil
@@ -100,37 +92,17 @@
   (with-slots (filters filter-form-visible add-filter-action) widget 
     (with-html 
       (cond 
-        (filters (htm 
-                   (:div :style "overflow:auto;"
-                    (:div :style "padding:5px;float:left;"
-                     (render-filters widget filters)))))
+        ((getf filters :value)
+         (htm 
+           (:div :style "overflow:auto;"
+            (:div :style "padding:5px;float:left;"
+             (render-filters widget filters)))))
         (filter-form-visible (render-filter-form widget)) 
-        (t (render-link (lambda (&rest args) (setf filter-form-visible t)) "Add filter" )))
+        (t (render-link (lambda (&rest args) (setf filter-form-visible t)) "Add filter")))
       (:div :style "clear:both"))))
 
 (defmethod render-filters ((widget filtering-widget) filters)
-  (render-and-cells widget filters))
-
-(defmethod render-or-cells ((widget filtering-widget) filters)
-  (let ((previous)
-        (filter filters))
-    (with-html 
-      (loop do 
-            (setf previous filter)
-            (setf filter (getf filter :or))
-
-            (htm (:div :style "text-align:center" "or"))
-            (if filter 
-              (htm 
-                (:div
-                  (render-and-cells widget filter :display-or nil :previous-elem previous)))
-              (progn 
-                (render-bottom-add-filter-link-or-form
-                  widget
-                  (getf previous :id)
-                  :or)
-                 
-                (return)))))))
+  (render-and-cells-new widget (list* filters (getf filters :and)) nil))
 
 (defmethod render-filter-display-value ((widget filtering-widget) field compare-type compare-value)
   (with-html 
@@ -174,62 +146,58 @@
         (:div :style "text-align:center;"
          (render-add-filter-link widget filter-id filter-type))))))
 
-(defmethod render-and-cells ((widget filtering-widget) filters &key (display-or t) previous-elem)
-  (let ((previous)
-        (filter filters))
+(defmethod render-or-cells-new ((widget filtering-widget) or-cells parent &optional display-close-button-p)
+  (let ((filter parent))
     (with-html 
-      (:div :style #-DEBUG(append-css-border-radius "5px" "border:1px solid #dbeac1;background-color:#ECF8D7") #+DEBUG"border:1px solid blue;"
-       (:div :style "float:right;padding:5px;"
-        (let ((previous-filter-id (getf (or previous-elem previous) :id))
-              (filter-type (if previous-elem :or :and)))
-          (htm 
-            (:a 
-              :href (add-get-param-to-url 
-                      (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (string previous-filter-id))
-                      "filter-type"
-                      (string filter-type))
-              :onclick (format nil 
-                               "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\", \"filter-type\":\"~A\"});return false;"
-                               (slot-value widget 'remove-filter-action) (session-name-string-pair) previous-filter-id filter-type)
-              :href "" :style "text-decoration:none" "x"))))
-       (:table :cellpadding 5 :cellspacing 0 :style "height:100%;margin:0 auto;"
-        (:tr 
-          (loop do 
-                (if filter 
-                  (let ((previous-filter-id (getf (or previous previous-elem) :id))
-                        (filter-type (if previous :and :or)))
-                    (htm 
-                      (:td :valign "top"
-                       (:div :style #-DEBUG(append-css-border-radius "5px" "border:1px solid #dbeac1;height:100%;padding:5px;") #+DEBUG"border:1px solid yellow;height:100%;padding:5px;"
-                        (:div :style "float:right;" 
-                         (:a 
-                           :href (add-get-param-to-url 
-                                   (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (string previous-filter-id))
-                                   "filter-type"
-                                   (string filter-type))
-                           :onclick (format nil 
-                                            "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\", \"filter-type\":\"~A\"});return false;"
-                                            (slot-value widget 'remove-filter-action) (session-name-string-pair) previous-filter-id filter-type)
-                           :href "" :style "text-decoration:none" "x"))
-                        (:div 
-                          (render-filter-display 
-                            widget (getf filter :value)))
-                        (if display-or (render-or-cells widget filter))))
-                      (:td "and")))
-                  (htm 
-                    (:td
-                      (render-right-add-filter-link-or-form widget (getf previous :id) :and))
+      (:div :style #-DEBUG(append-css-border-radius "5px" "border:1px solid #dbeac1;height:100%;padding:5px;") #+DEBUG"border:1px solid yellow;height:100%;padding:5px;"
+       (:div :style "float:right;" 
+        (when (or (getf parent :or) (getf parent :and) display-close-button-p)
+          (htm (:a 
+                 :href (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (getf filter :id))
+                 :onclick (format nil 
+                                  "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
+                                  (slot-value widget 'remove-filter-action) (session-name-string-pair) (getf filter :id))
+                 :href "" :style "text-decoration:none" "x"))))
+       (:div (render-filter-display widget (getf parent :value)))
+       (loop for filter in or-cells do 
+             (htm 
+               (unless (equal filter parent) 
+                 (htm (:div :style "text-align:center" "or")))
+               (:div
+                 (unless (equal filter parent)
+                   (render-and-cells-new 
+                     widget 
+                     (list* filter (getf filter :and))
+                     filter))))) 
+       (htm 
+         (:div :style "text-align:center" "or")
+         (:div :style "text-align:center"
+          (render-bottom-add-filter-link-or-form widget (or (getf parent :id) "") :or)))))))
 
-                    (return)))
-
-                (setf previous filter)
-                (setf filter (getf filter :and)))))))))
+(defmethod render-and-cells-new ((widget filtering-widget) and-cells parent)
+  (with-html
+    (:table :cellpadding 5 :cellspacing 0 :style (append-css-border-radius "5px" "height:100%;margin:0 auto; border:1px solid #dbeac1;background-color:#ECF8D7")
+     (:tr 
+       (loop for filter in and-cells do
+             (htm 
+               (:td :valign "top"
+                (render-or-cells-new widget (list* filter (reverse (getf filter :or))) filter (not (equal filter parent)))) 
+               (:td "and")))
+       (htm (:td
+              (render-right-add-filter-link-or-form widget (getf (first and-cells) :id) :and))
+            (:td :valign "top"
+             (htm (:a 
+                    :href (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (getf parent :id ""))
+                    :onclick (format nil 
+                                     "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
+                                     (slot-value widget 'remove-filter-action) (session-name-string-pair) (getf parent :id))
+                    :href "" :style "text-decoration:none" "x"))))))))
 
 (defmethod render-right-add-filter-link-or-form ((widget filtering-widget) id type)
   (if (filter-form-on-element-p widget id type)
     (with-html 
       (:div :style #-DEBUG(append-css-border-radius "5px" "border:1px solid #dbeac1;padding:5px;") #+DEBUG"border: 1px solid red;"
-        (render-filter-form widget)))
+       (render-filter-form widget)))
     (render-add-filter-link widget id type)))
 
 (defmethod render-add-filter-link ((widget filtering-widget) filter-id filter-type)
@@ -259,26 +227,36 @@
 (defmethod get-filter-form ((widget filtering-widget))
   (make-filtering-form 
     widget
+    (list :field (getf (first (slot-value widget 'form-fields)) :id) :compare-type "like")
     :on-success (lambda (form object)
                   (with-slots (filter-form-position filters) widget 
                     (let* ((new-filter-value (object->simple-plist object))
                            (new-filter (list :value  nil
-                                            :id (write-to-string (gensym))
-                                            :and nil 
-                                            :or nil)))
-                      (setf (getf new-filter-value :field) (intern (getf new-filter-value :field) "KEYWORD"))
-                      (setf (getf new-filter :value) new-filter-value)
+                                             :id (write-to-string (gensym))
+                                             :and nil 
+                                             :or nil))
+                           (key (if filter-form-position (intern (cdr filter-form-position) "KEYWORD") :and)))
+                      (if (equal key :top-or)
+                        (progn 
+                          (setf (getf new-filter :or) (list filters))
+                          (setf filters new-filter))
+                        (progn
 
-                      (if filters 
-                        (setf filters 
-                              (map-filters 
-                                (lambda (item)
-                                  (when (string= (string (getf item :id)) (car filter-form-position))
-                                    (let ((key (intern (cdr filter-form-position) "KEYWORD")))
-                                      (setf (getf item key) new-filter)))
-                                  item)
-                                filters))
-                        (setf filters new-filter))))
+                          (setf (getf new-filter-value :field) (intern (getf new-filter-value :field) "KEYWORD")) 
+                          (setf (getf new-filter :value) new-filter-value) 
+
+                          (cond 
+                            ((not (getf filters :value)) (setf filters new-filter))
+                            (t
+                             (setf filters 
+                                   (car (map-filters 
+                                          (lambda (item)
+                                            (if (string= (string (getf item :id)) (car filter-form-position))
+                                              (progn
+                                                (push new-filter (getf item key))
+                                                item)
+                                              item))
+                                          (list filters))))))))))
                   (hide-filter-form widget)
                   (mark-dirty widget))
     :on-cancel (lambda (form)
