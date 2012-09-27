@@ -31,7 +31,10 @@
              (funcall 
                compare-func
                (handler-case 
-                 (funcall filter-accessor model-instance)
+                 (let ((value (funcall filter-accessor model-instance))) 
+                   (if (stringp value)
+                     value
+                     (write-to-string value)))
                  (unbound-slot () nil)) 
                (getf filter-value :compare-value))
              nil)))

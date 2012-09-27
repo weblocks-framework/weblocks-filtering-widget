@@ -10,10 +10,11 @@
     :author "Olexiy Zamkoviy"
     :licence "Public Domain"
     :description "Filtering widget for weblocks framework"
-    :depends-on (:weblocks)
+    :depends-on (:weblocks :clsql)
     :components ((:file "package")
                  (:file "filtering-widget" :depends-on ("package" "compare-function"))
                  (:file "filtering-form" :depends-on ("package"))
-                 (:file "compare-function" :depends-on ("package" "util"))
-                 (:file "util" :depends-on ("package"))))
+                 (:file "compare-function" :depends-on ("package" "util" "compare-sql-function"))
+                 (:file "util" :depends-on ("package"))
+                 (:file "compare-sql-function" :depends-on ("package"))))
 

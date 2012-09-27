@@ -276,18 +276,38 @@
 
 (defmethod form-fields-accessors-list ((widget filtering-widget))
   (with-slots (form-fields) widget
-    (loop for i in form-fields append (list (getf i :id) (getf i :accessor)))))
+    (loop for i in form-fields 
+          append (list (getf i :id) 
+                       (or 
+                         (getf i :accessor)
+                         (if (getf i :slot)
+                           (let ((slot (getf i :slot)))
+                             (lambda (item)
+                               (slot-value item slot)))
+                           (error "Either slot or accesor param should be bound to field info ~A" i)))))))
 
 (defmethod on-query-function ((widget filtering-widget))
   (lambda (obj order limit &key countp)
     (let ((values 
-            (funcall 
-              (if countp #'count-by #'find-by)
-              (dataseq-data-class obj)
-              (lambda (item)
-                (compare (slot-value widget 'filters) item 
-                         (form-fields-accessors-list widget)))
-              :order-by order
-              :range limit 
-              :store (dataseq-class-store obj))))
+            (if (clsql-poveredp :store (dataseq-class-store obj))
+              (funcall 
+                (if countp #'count-persistent-objects #'find-persistent-objects)
+                (dataseq-class-store obj)
+                (dataseq-data-class obj)
+                :where (compare-sql-expression (slot-value widget 'filters))
+                :range limit
+                :order-by order
+                :store (dataseq-class-store obj))
+              (funcall 
+                (if countp #'count-by #'find-by)
+                (dataseq-data-class obj)
+                (when (slot-value widget 'filters)
+                  (lambda (item)
+                    (let ((return 
+                            (compare (slot-value widget 'filters) item 
+                                     (form-fields-accessors-list widget))))
+                      return)))
+                :order-by order
+                :range limit 
+                :store (dataseq-class-store obj)))))
       values)))
