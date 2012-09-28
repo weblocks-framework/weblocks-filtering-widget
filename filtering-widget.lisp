@@ -120,9 +120,18 @@
 (defmethod get-filter-value-display-value ((widget filtering-widget) field compare-type compare-value)
   (format nil "~A" compare-value))
 
+(defun render-close-button (widget previous-filter-id)
+  (with-html 
+    (:a 
+      :href (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (string previous-filter-id))
+      :onclick (format nil 
+                       "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
+                       (slot-value widget 'remove-filter-action) (session-name-string-pair) previous-filter-id)
+      :href "" :style (append-css-border-radius "3px" "border:2px solid #dbeac1;text-decoration:none;font-size:16px;padding:0 5px;font-family:monospace;font-weight:bold;margin-bottom:10px;") "x")))
+
 (defmethod render-filter-display ((widget filtering-widget) spec-plist)
   (with-html 
-    (:div :style "white-space:nowrap;padding-right:10px;"
+    (:div :style "white-space:nowrap;padding-right:30px;"
      (render-filter-display-value 
        widget
        (getf (find-form-field-by-id widget (getf spec-plist :field)) :caption)
@@ -152,12 +161,7 @@
       (:div :style #-DEBUG(append-css-border-radius "5px" "border:1px solid #dbeac1;height:100%;padding:5px;") #+DEBUG"border:1px solid yellow;height:100%;padding:5px;"
        (:div :style "float:right;" 
         (when (or (getf parent :or) (getf parent :and) display-close-button-p)
-          (htm (:a 
-                 :href (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (getf filter :id))
-                 :onclick (format nil 
-                                  "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
-                                  (slot-value widget 'remove-filter-action) (session-name-string-pair) (getf filter :id))
-                 :href "" :style "text-decoration:none" "x"))))
+          (render-close-button widget (getf filter :id))))
        (:div (render-filter-display widget (getf parent :value)))
        (loop for filter in or-cells do 
              (htm 
@@ -186,12 +190,7 @@
        (htm (:td
               (render-right-add-filter-link-or-form widget (getf (first and-cells) :id) :and))
             (:td :valign "top"
-             (htm (:a 
-                    :href (add-get-param-to-url (make-action-url (slot-value widget 'remove-filter-action)) "id" (getf parent :id ""))
-                    :onclick (format nil 
-                                     "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
-                                     (slot-value widget 'remove-filter-action) (session-name-string-pair) (getf parent :id))
-                    :href "" :style "text-decoration:none" "x"))))))))
+             (render-close-button widget (getf parent :id))))))))
 
 (defmethod render-right-add-filter-link-or-form ((widget filtering-widget) id type)
   (if (filter-form-on-element-p widget id type)
