@@ -3,16 +3,15 @@
 (defun prevalence-poweredp (&key store)
   (let ((store (or store *default-store*)))
     (if (find-package 'cl-prevalence)
-      (eq (class-name  (class-of store)) #.'"cl-prevalence:guarded-prevalence-system")
+      (eq (class-name  (class-of store)) (intern "GUARDED-PREVALENCE-SYSTEM" "CL-PREVALENCE"))
       nil)))
 
 (defun clsql-poveredp (&key store)
   (let ((store (or store *default-store*)))
-    (if (and 
-          (find-package 'clsql)
-          (find-package 'clsql-fluid-bt))
-      (eq (class-name (class-of store)) #."clsql-fluid-bt:fluid-database"))
-    t))
+    (and 
+      (find-package 'clsql)
+      (find-package 'clsql-fluid-bt)
+      (string= (string (class-name (class-of store))) (string (intern "FLUID-DATABASE" "CLSQL-FLUID-BT"))))))
 
 (defun find-by-in-sql-store (class fun &key order-by range store)
   (if (not range)

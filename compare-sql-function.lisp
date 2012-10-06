@@ -40,13 +40,13 @@
                           (getf value :compare-value))))))
              (expression
                (make-instance 
-                 #."clsql-sys:sql-relational-exp" 
+                 (intern "SQL-RELATIONAL-EXP" "CLSQL-SYS")
                  :operator operator
                  :sub-expressions sub-expressions)))
         (when is-a-not-expression 
           (setf expression 
                 (make-instance 
-                  #."clsql-sys:sql-value-exp" 
+                  (intern "SQL-VALUE-EXP" "CLSQL-SYS")
                   :modifier 'not 
                   :components 
                   (list 
@@ -59,7 +59,7 @@
             (write-to-string expression2))))
 
 (when (find-package :clsql)
-  (eval `(,#."clsql:locally-enable-sql-reader-syntax"))
+  (eval `(,(intern "LOCALLY-ENABLE-SQL-READER-SYNTAX" "CLSQL")))
 
   (assert-expressions-equal 
     [= 'post_subject "test"]
@@ -77,5 +77,5 @@
     [not [like 'post_subject "%test%"]]
     (compare-sql-expression '(:VALUE (:FIELD :POST_SUBJECT :COMPARE-TYPE "not-like" :COMPARE-VALUE "test") :ID "#:G1966" :AND NIL :OR NIL)))
 
-  (eval `(,#."clsql:restore-sql-reader-syntax-state")))
+  (eval `(,(intern "RESTORE-SQL-READER-SYNTAX-STATE" "CLSQL"))))
 
