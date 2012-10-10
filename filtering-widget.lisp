@@ -8,7 +8,8 @@
    (remove-filter-action)
    (form-title :initarg :form-title :initform "Filtering widget" :accessor filtering-widget-form-title)
    (form-fields :initarg :form-fields)
-   (dataseq-instance :initarg :dataseq-instance :initform nil)))
+   (dataseq-instance :initarg :dataseq-instance :initform nil)
+   (filtering-form-instance :initform nil)))
 
 (defun object->simple-plist (object &rest filters)
   (loop for i in (sb-mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
@@ -127,7 +128,7 @@
       :onclick (format nil 
                        "initiateActionWithArgs(\"~A\", \"~A\", {id: \"~A\"});return false;"
                        (slot-value widget 'remove-filter-action) (session-name-string-pair) previous-filter-id)
-      :href "" :style (append-css-border-radius "3px" "border:2px solid #dbeac1;text-decoration:none;font-size:16px;padding:0 5px;font-family:monospace;font-weight:bold;margin-bottom:10px;") "x")))
+      :style (append-css-border-radius "3px" "border:2px solid #dbeac1;text-decoration:none;font-size:16px;padding:0 5px;font-family:monospace;font-weight:bold;margin-bottom:10px;") "x")))
 
 (defmethod render-filter-display ((widget filtering-widget) spec-plist)
   (with-html 
@@ -224,6 +225,10 @@
   (mark-dirty widget))
 
 (defmethod get-filter-form ((widget filtering-widget))
+  (with-slots (filtering-form-instance) widget
+    (or 
+      filtering-form-instance
+      (setf filtering-form-instance 
   (make-filtering-form 
     widget
     (list :field (getf (first (slot-value widget 'form-fields)) :id) :compare-type "like")
@@ -259,7 +264,7 @@
                   (hide-filter-form widget)
                   (mark-dirty widget))
     :on-cancel (lambda (form)
-                 (hide-filter-form widget))))
+                           (hide-filter-form widget)))))))
 
 (defmethod compare-field-form-choices ((widget filtering-widget))
   (loop for i in (slot-value widget 'form-fields) 
