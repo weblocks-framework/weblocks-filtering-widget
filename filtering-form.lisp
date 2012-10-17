@@ -23,7 +23,6 @@
                (attributize-view-field-name field-info)
                (attributize-name (view-field-slot-name field))))
            (key (intern (string-upcase attributized-slot-name) "WEBLOCKS-FILTERING-WIDGET")))
-      (firephp:fb intermediate-values)
       (with-html 
         (:input :type "hidden" :name attributized-slot-name :value value)
         (:ul :style "display:inline-block"
