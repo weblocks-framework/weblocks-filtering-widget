@@ -4,8 +4,10 @@
   (let ((parts (cl-ppcre:split "\\*" expression)))
     (format nil ".*~{~A.*~}" (mapcar #'cl-ppcre:quote-meta-chars parts))))
 
-(defun string-like-pattern-p (value1 value2)
-  (if (cl-ppcre:scan (like-expression->regexp value2) value1) t))
+(defun string-like-pattern-p (value1 value2 &key (case-sensitive t))
+  (if (cl-ppcre:scan (cl-ppcre:create-scanner 
+                       (like-expression->regexp value2)
+                       :case-insensitive-mode t) value1) t))
 
 (defun string-not-like-pattern-p (value1 value2)
   (not (string-like-pattern-p value1 value2)))
@@ -13,14 +15,38 @@
 (defun string-not= (str1 str2)
   (not (string= str1 str2)))
 
+(defun case-insensitive-string= (str1 str2)
+  (string= (string-downcase str1) (string-downcase str2)))
+
+(assert (case-insensitive-string= "Test" "test"))
+
+(defun case-insensitive-string-not= (str1 str2)
+  (not (case-insensitive-string= str1 str2)))
+
+(assert (not (case-insensitive-string-not= "Test" "test")))
+
+(defun case-insensitive-string-like-pattern-p (str1 str2)
+  (string-like-pattern-p str1 str2 :case-sensitive nil))
+
+(defun case-insensitive-string-not-like-pattern-p (str1 str2)
+  (not (case-insensitive-string-like-pattern-p str1 str2)))
+
 (defvar *compare-functions* (list 
-                              :equal #'string=
-                              :like #'string-like-pattern-p 
-                              :not-equal #'string-not=
-                              :not-like #'string-not-like-pattern-p))
+                              :case-sensitive 
+                              (list 
+                                :equal #'string=
+                                :like #'string-like-pattern-p 
+                                :not-equal #'string-not=
+                                :not-like #'string-not-like-pattern-p)
+                              :case-insensitive 
+                              (list 
+                                :equal #'case-insensitive-string=
+                                :like #'case-insensitive-string-like-pattern-p
+                                :not-equal #'case-insensitive-string-not=
+                                :not-like #'case-insensitive-string-not-like-pattern-p)))
 (defvar *accessors*)
 
-(defun compare-single-value (filter-value model-instance &optional (compare-functions *compare-functions*))
+(defun compare-single-value (filter-value model-instance &optional (compare-functions (getf *compare-functions* :case-insensitive)))
   (declare (special *accessors*))
   (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
          (compare-func (or (getf compare-functions compare-function-key)
