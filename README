@@ -1,6 +1,11 @@
 A filtering widget for weblocks.
 
-Filters data text values for equality for any dataseq widget.
+Allows to use complex filters for equality, similarity for text values.
+Complex means that you can add "AND", "OR" conditions to filters in any way you want.
+Allows to use filters of any complexity in perspective.
+
+Works with gridedit widgets at this time.
+
 Usage is 
 
 (let ((dataseq-instance (make-instance 'gridedit)))
