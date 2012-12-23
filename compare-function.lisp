@@ -63,7 +63,7 @@
                      (write-to-string value)))
                  (unbound-slot () nil)) 
                (getf filter-value :compare-value))
-             nil)))
+             (error "No filter accessor for ~A" (getf filter-value :field)))))
     return)) 
 
 

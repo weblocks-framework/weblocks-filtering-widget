@@ -9,9 +9,9 @@
     (push :clsql dependencies))
    (eval `(defsystem weblocks-filtering-widget
            :name "Weblocks filtering widget"
-           :version "0.1"
+           :version "0.2.0"
            :author "Olexiy Zamkoviy"
-           :licence "Public Domain"
+           :licence "LLGPL"
            :description "Filtering widget for weblocks framework"
            :depends-on ,dependencies
            :components ((:file "package")
