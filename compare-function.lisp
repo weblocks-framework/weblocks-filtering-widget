@@ -31,6 +31,14 @@
 (defun case-insensitive-string-not-like-pattern-p (str1 str2)
   (not (case-insensitive-string-like-pattern-p str1 str2)))
 
+(defun safe>= (value1 value2)
+  (ignore-errors 
+    (>= value1 value2)))
+
+(defun safe<= (value1 value2)
+  (ignore-errors 
+    (<= value1 value2)))
+
 (defvar *compare-functions* (list 
                               :case-sensitive 
                               (list 
@@ -43,24 +51,36 @@
                                 :equal #'case-insensitive-string=
                                 :like #'case-insensitive-string-like-pattern-p
                                 :not-equal #'case-insensitive-string-not=
-                                :not-like #'case-insensitive-string-not-like-pattern-p)))
+                                :not-like #'case-insensitive-string-not-like-pattern-p)
+                              :numbers 
+                              (list 
+                                :more #'safe>=
+                                :less #'safe<=)))
 (defvar *accessors*)
 
-(defun compare-single-value (filter-value model-instance &optional (compare-functions (getf *compare-functions* :case-insensitive)))
+(defun compare-single-value (filter-value model-instance &optional (compare-functions (append 
+                                                                                        (getf *compare-functions* :case-insensitive)
+                                                                                        (getf *compare-functions* :numbers))))
   (declare (special *accessors*))
   (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
          (compare-func (or (getf compare-functions compare-function-key)
                            (error (format nil "Function ~A not found in compare-functions" compare-function-key))))
          (filter-accessor (getf *accessors* (getf filter-value :field)))
+         (comparing-numbers-p 
+           (getf 
+             (getf *compare-functions* :numbers) 
+             compare-function-key))
          (return 
            (if filter-accessor
              (funcall 
                compare-func
                (handler-case 
                  (let ((value (funcall filter-accessor model-instance))) 
-                   (if (stringp value)
+                   (if comparing-numbers-p 
                      value
-                     (write-to-string value)))
+                     (if (stringp value)
+                       value
+                       (write-to-string value))))
                  (unbound-slot () nil)) 
                (getf filter-value :compare-value))
              (error "No filter accessor for ~A" (getf filter-value :field)))))

@@ -108,18 +108,26 @@
 (defmethod render-filter-display-value ((widget filtering-widget) field compare-type compare-value)
   (with-html 
     (:b 
-      (esc field))
+      (esc (getf field :caption)))
     (esc (cond 
            ((string= compare-type "equal") " is equal to ")
            ((string= compare-type "like") " is like ")
            ((string= compare-type "not-like") " is not like ")
            ((string= compare-type "not-equal") " is not equal to ")
+           ((string= compare-type "more") " is more ")
+           ((string= compare-type "less") " is less ")
            (t (error (format nil "No such compare type - ~A" compare-type)))))
     (:b 
-      (esc (get-filter-value-display-value widget field compare-type compare-value)))))
+      (esc (get-filter-value-display-value widget field (intern (string-upcase compare-type) "KEYWORD") compare-value)))))
 
 (defmethod get-filter-value-display-value ((widget filtering-widget) field compare-type compare-value)
   (format nil "~A" compare-value))
+
+(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :more)) compare-value)
+  (metatilities:format-date "%Y-%m-%d %H:%M:%S" compare-value))
+
+(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :less)) compare-value)
+  (metatilities:format-date "%Y-%m-%d %H:%M:%S" compare-value))
 
 (defun render-close-button (widget previous-filter-id)
   (with-html 
@@ -135,7 +143,7 @@
     (:div :style "white-space:nowrap;padding-right:30px;"
      (render-filter-display-value 
        widget
-       (getf (find-form-field-by-id widget (getf spec-plist :field)) :caption)
+       (find-form-field-by-id widget (getf spec-plist :field))
        (getf spec-plist :compare-type) 
        (getf spec-plist :compare-value)))))
 
