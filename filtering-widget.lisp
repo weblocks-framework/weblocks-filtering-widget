@@ -290,10 +290,16 @@
                                (slot-value item slot)))
                            (error "Either slot or accesor param should be bound to field info ~A" i)))))))
 
+(defun item-matches-widget-filters-p (item widget)
+  (let ((return 
+          (compare (slot-value widget 'filters) item 
+                   (form-fields-accessors-list widget))))
+    return))
+
 (defmethod on-query-function ((widget filtering-widget))
   (lambda (obj order limit &key countp)
     (let ((values 
-            (if (clsql-poveredp :store (dataseq-class-store obj))
+            (if (clsql-poweredp :store (dataseq-class-store obj))
               (funcall 
                 (if countp #'count-persistent-objects #'find-persistent-objects)
                 (dataseq-class-store obj)
@@ -307,10 +313,7 @@
                 (dataseq-data-class obj)
                 (when (slot-value widget 'filters)
                   (lambda (item)
-                    (let ((return 
-                            (compare (slot-value widget 'filters) item 
-                                     (form-fields-accessors-list widget))))
-                      return)))
+                    (item-matches-widget-filters-p item widget)))
                 :order-by order
                 :range limit 
                 :store (dataseq-class-store obj)))))

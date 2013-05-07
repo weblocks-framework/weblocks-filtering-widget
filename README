@@ -22,3 +22,4 @@ Usage is
      :caption "Last name"
      :accessor #'person-last-name))))
 
+Currently depends on weblocks-utils 0.2.2, cl-config 0.1.0, weblocks 0.8.8, needs weblocks-selenium-tests 0.2.2 for tests

@@ -4,12 +4,12 @@
 
 (in-package :weblocks-filtering-widget-asd)
 
-(let ((dependencies (list :weblocks :cl-config :anaphora :cl-containers)))
+(let ((dependencies (list :weblocks :cl-config :anaphora :cl-containers :weblocks-utils)))
    (if (find-package :clsql) 
     (push :clsql dependencies))
    (eval `(defsystem weblocks-filtering-widget
            :name "Weblocks filtering widget"
-           :version "0.2.0"
+           :version "0.2.1"
            :author "Olexiy Zamkoviy"
            :licence "LLGPL"
            :description "Filtering widget for weblocks framework"
@@ -17,7 +17,6 @@
            :components ((:file "package")
              (:file "filtering-widget" :depends-on ("package" "compare-function"))
              (:file "filtering-form" :depends-on ("package"))
-             (:file "compare-function" :depends-on ("package" "util" "compare-sql-function"))
-             (:file "util" :depends-on ("package"))
+             (:file "compare-function" :depends-on ("package" "compare-sql-function"))
              (:file "compare-sql-function" :depends-on ("package"))))))
 
