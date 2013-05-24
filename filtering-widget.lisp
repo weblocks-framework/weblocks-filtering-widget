@@ -286,43 +286,58 @@
         (mark-dirty dataseq-instance)))) 
   (call-next-method))
 
+(defun form-fields-accessors (form-fields)
+  (loop for i in form-fields 
+        append (list (getf i :id) 
+                     (or 
+                       (getf i :accessor)
+                       (if (getf i :slot)
+                         (let ((slot (getf i :slot)))
+                           (lambda (item)
+                             (slot-value item slot)))
+                         (error "Either slot or accesor param should be bound to field info ~A" i))))))
+
 (defmethod form-fields-accessors-list ((widget filtering-widget))
   (with-slots (form-fields) widget
-    (loop for i in form-fields 
-          append (list (getf i :id) 
-                       (or 
-                         (getf i :accessor)
-                         (if (getf i :slot)
-                           (let ((slot (getf i :slot)))
-                             (lambda (item)
-                               (slot-value item slot)))
-                           (error "Either slot or accesor param should be bound to field info ~A" i)))))))
+    (form-fields-accessors form-fields)))
 
 (defun item-matches-widget-filters-p (item widget)
-  (let ((return 
-          (compare (slot-value widget 'filters) item 
-                   (form-fields-accessors-list widget))))
-    return))
+  (compare (slot-value widget 'filters) item 
+           (form-fields-accessors-list widget)))
+
+(defun filtering-on-query (filters-thunk accessors-thunk)
+  (lambda (obj order limit &key countp)
+    (let* ((filters (funcall filters-thunk))
+           (accessors (funcall accessors-thunk))
+           (values 
+             (if (clsql-poweredp :store (dataseq-class-store obj))
+               (funcall 
+                 (if countp #'count-persistent-objects #'find-persistent-objects)
+                 (dataseq-class-store obj)
+                 (dataseq-data-class obj)
+                 :where (compare-sql-expression filters)
+                 :range limit
+                 :order-by order
+                 :store (dataseq-class-store obj))
+               (funcall 
+                 (if countp #'count-by #'find-by)
+                 (dataseq-data-class obj)
+                 (when  filters
+                   (lambda (item)
+                     (compare filters item accessors)))
+                 :order-by order
+                 :range limit 
+                 :store (dataseq-class-store obj)))))
+      values)))
 
 (defmethod on-query-function ((widget filtering-widget))
-  (lambda (obj order limit &key countp)
-    (let ((values 
-            (if (clsql-poweredp :store (dataseq-class-store obj))
-              (funcall 
-                (if countp #'count-persistent-objects #'find-persistent-objects)
-                (dataseq-class-store obj)
-                (dataseq-data-class obj)
-                :where (compare-sql-expression (slot-value widget 'filters))
-                :range limit
-                :order-by order
-                :store (dataseq-class-store obj))
-              (funcall 
-                (if countp #'count-by #'find-by)
-                (dataseq-data-class obj)
-                (when (slot-value widget 'filters)
-                  (lambda (item)
-                    (item-matches-widget-filters-p item widget)))
-                :order-by order
-                :range limit 
-                :store (dataseq-class-store obj)))))
-      values)))
+  (filtering-on-query 
+    (lambda ()
+      (firephp:fb (slot-value widget 'filters))
+      (slot-value widget 'filters)) 
+    (lambda ()
+      (unless (clsql-poweredp 
+                :store 
+                (dataseq-class-store 
+                  (slot-value widget 'dataseq-instance)))
+        (form-fields-accessors-list widget)))))

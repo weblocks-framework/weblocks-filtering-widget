@@ -33,7 +33,7 @@
                                   (if (not intermediate-values) 
                                     (setf (slot-value widget 'weblocks::intermediate-form-values)
                                         (apply #'weblocks::request-parameters-for-object-view
-                                               view (list key (intern (getf args key) "KEYWORD"))))
+                                               view obj (list key (intern (getf args key) "KEYWORD"))))
                                     (let ((field (assoc field (slot-value widget 'weblocks::intermediate-form-values))))
                                       (when field 
                                         (setf (cdr field)
