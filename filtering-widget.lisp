@@ -333,7 +333,6 @@
 (defmethod on-query-function ((widget filtering-widget))
   (filtering-on-query 
     (lambda ()
-      (firephp:fb (slot-value widget 'filters))
       (slot-value widget 'filters)) 
     (lambda ()
       (unless (clsql-poweredp 
