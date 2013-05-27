@@ -39,6 +39,17 @@
   (ignore-errors 
     (<= value1 value2)))
 
+(defun force-string (obj)
+  (cond 
+    ((integerp obj) (write-to-string obj))
+    ((stringp obj) obj)
+    (t (error "Don't know how to force string format for ~A" obj))))
+
+(defun item-in-list-p (item list)
+  (find (force-string item) 
+        (mapcar #'force-string list)
+        :test #'string= ))
+
 (defvar *compare-functions* (list 
                               :case-sensitive 
                               (list 
@@ -55,12 +66,16 @@
                               :numbers 
                               (list 
                                 :more #'safe>=
-                                :less #'safe<=)))
+                                :less #'safe<=)
+                              :lists 
+                              (list 
+                                :in #'item-in-list-p)))
 (defvar *accessors*)
 
 (defun compare-single-value (filter-value model-instance &optional (compare-functions (append 
                                                                                         (getf *compare-functions* :case-insensitive)
-                                                                                        (getf *compare-functions* :numbers))))
+                                                                                        (getf *compare-functions* :numbers)
+                                                                                        (getf *compare-functions* :lists))))
   (declare (special *accessors*))
   (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
          (compare-func (or (getf compare-functions compare-function-key)
