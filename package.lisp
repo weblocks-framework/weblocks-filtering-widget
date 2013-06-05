@@ -1,5 +1,5 @@
 (defpackage #:weblocks-filtering-widget
-  (:use :cl :weblocks :cl-who :anaphora :cl-containers)
+  (:use :cl :weblocks :cl-who :anaphora :cl-containers :weblocks-util)
   (:import-from :weblocks-utils :find-by :count-by :clsql-poweredp :all-of)
   (:documentation
     "Filtering widget for weblocks framework")
