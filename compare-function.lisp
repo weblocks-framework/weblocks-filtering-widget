@@ -43,6 +43,7 @@
   (cond 
     ((integerp obj) (write-to-string obj))
     ((stringp obj) obj)
+    ((null obj) "")
     (t (error "Don't know how to force string format for ~A" obj))))
 
 (defun item-in-list-p (item list)
@@ -69,7 +70,7 @@
                                 :less #'safe<=)
                               :lists 
                               (list 
-                                :in #'item-in-list-p)))
+                                :in 'item-in-list-p)))
 (defvar *accessors*)
 
 (defun compare-single-value (filter-value model-instance &optional (compare-functions (append 
@@ -78,12 +79,19 @@
                                                                                         (getf *compare-functions* :lists))))
   (declare (special *accessors*))
   (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
-         (compare-func (or (getf compare-functions compare-function-key)
-                           (error (format nil "Function ~A not found in compare-functions" compare-function-key))))
+         (compare-func (cond 
+                         ((functionp (getf filter-value :compare-function)) 
+                          (getf filter-value :compare-function))
+                         (t (or (getf compare-functions compare-function-key)
+                                (error (format nil "Function ~A not found in compare-functions" compare-function-key))))))
          (filter-accessor (getf *accessors* (getf filter-value :field)))
          (comparing-numbers-p 
            (getf 
              (getf *compare-functions* :numbers) 
+             compare-function-key))
+         (comparing-strings-p 
+           (getf 
+             (getf *compare-functions* :case-insensitive) 
              compare-function-key))
          (return 
            (if filter-accessor
@@ -91,11 +99,11 @@
                compare-func
                (handler-case 
                  (let ((value (funcall filter-accessor model-instance))) 
-                   (if comparing-numbers-p 
-                     value
-                     (if (stringp value)
-                       value
-                       (write-to-string value))))
+                   (cond 
+                     (comparing-numbers-p value)
+                     (comparing-strings-p 
+                       (force-string value))
+                     (t value)))
                  (unbound-slot () nil)) 
                (getf filter-value :compare-value))
              (error "No filter accessor for ~A" (getf filter-value :field)))))
