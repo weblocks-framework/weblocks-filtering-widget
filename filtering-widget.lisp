@@ -12,10 +12,10 @@
    (filtering-form-instance :initform nil)))
 
 (defun object->simple-plist (object &rest filters)
-  (loop for i in (sb-mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
-        (let* ((slot (intern (string (sb-mop:slot-definition-name i)) "KEYWORD"))
-               (value (if (slot-boundp object (sb-mop:slot-definition-name i))
-                        (slot-value object (sb-mop:slot-definition-name i))
+  (loop for i in (c2mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
+        (let* ((slot (intern (string (c2mop:slot-definition-name i)) "KEYWORD"))
+               (value (if (slot-boundp object (c2mop:slot-definition-name i))
+                        (slot-value object (c2mop:slot-definition-name i))
                         "Unbound")))
           (list slot (if (getf filters slot) (funcall (getf filters slot) value) value)))))
 
