@@ -9,7 +9,7 @@
     (push :clsql dependencies))
    (eval `(defsystem weblocks-filtering-widget
            :name "Weblocks filtering widget"
-           :version "0.3.6"
+           :version (:read-from-file "version.lisp-expr")
            :author "Olexiy Zamkoviy"
            :licence "LLGPL"
            :description "Filtering widget for weblocks framework"
