@@ -31,13 +31,9 @@
 (defun case-insensitive-string-not-like-pattern-p (str1 str2)
   (not (case-insensitive-string-like-pattern-p str1 str2)))
 
-(defun safe>= (value1 value2)
-  (ignore-errors 
-    (>= value1 value2)))
-
-(defun safe<= (value1 value2)
-  (ignore-errors 
-    (<= value1 value2)))
+(defun dirty-integerp (number)
+  (or (integerp number)
+      (ppcre:scan "\\d+" number)))
 
 (defun force-string (obj)
   (cond 
@@ -46,10 +42,41 @@
     ((null obj) "")
     (t (error "Don't know how to force string format for ~A" obj))))
 
+(defun force-integer (string-or-number)
+  (cond 
+    ((numberp string-or-number) string-or-number)
+    ((null string-or-number) 0)
+    (t (parse-integer string-or-number))))
+
+(defun safe>= (value1 value2)
+  (>= (force-integer value1) (force-integer value2)))
+
+(defun safe<= (value1 value2)
+  (<= (force-integer value1) (force-integer value2)))
+
+(defun safe> (value1 value2)
+  (> (force-integer value1) (force-integer value2)))
+
+(defun safe< (value1 value2)
+  (< (force-integer value1) (force-integer value2)))
+
 (defun item-in-list-p (item list)
   (find (force-string item) 
         (mapcar #'force-string list)
         :test #'string= ))
+
+(defun objects-identical-p (item1 item2)
+  (when item1 
+    (cond 
+      ((integerp item1) (= item1 (force-integer item2)))
+      ((stringp item1) (string= item1 (force-string item2)))
+      ((and (dirty-integerp item2) (integerp (ignore-errors (object-id item1))))
+       (= (force-integer item2) (force-integer (object-id item1))))
+      (t (progn 
+           (error "Identity is not supported for objects ~A ~A of types ~A ~A~%" item1 item2 (type-of item1) (type-of item2)))))))
+
+(defun objects-not-identical-p (item1 item2)
+  (not (objects-identical-p item1 item2)))
 
 (defvar *compare-functions* (list 
                               :case-sensitive 
@@ -66,8 +93,18 @@
                                 :not-like #'case-insensitive-string-not-like-pattern-p)
                               :numbers 
                               (list 
-                                :more #'safe>=
-                                :less #'safe<=)
+                                :greater-or-equal-number #'safe>=
+                                :less-or-equal-number #'safe<=
+                                :greater-number #'safe>
+                                :less-number #'safe<)
+                              :dates 
+                              (list 
+                                :greater-date #'safe>=
+                                :less-date #'safe<=)
+                              :objects 
+                              (list 
+                                :identical #'objects-identical-p
+                                :not-identical #'objects-not-identical-p)
                               :lists 
                               (list 
                                 :in 'item-in-list-p)))
@@ -76,7 +113,10 @@
 (defun compare-single-value (filter-value model-instance &optional (compare-functions (append 
                                                                                         (getf *compare-functions* :case-insensitive)
                                                                                         (getf *compare-functions* :numbers)
-                                                                                        (getf *compare-functions* :lists))))
+                                                                                        (getf *compare-functions* :dates)
+                                                                                        (getf *compare-functions* :lists)
+                                                                                        (getf *compare-functions* :objects)
+                                                                                        )))
   (declare (special *accessors*))
   (let* ((compare-function-key (intern (string-upcase (getf filter-value :compare-type)) "KEYWORD"))
          (compare-func (cond 
@@ -107,7 +147,7 @@
                  (unbound-slot () nil)) 
                (getf filter-value :compare-value))
              (error "No filter accessor for ~A" (getf filter-value :field)))))
-    return)) 
+    return))
 
 
 (defclass test-item ()

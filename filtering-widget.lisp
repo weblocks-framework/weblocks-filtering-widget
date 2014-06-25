@@ -11,6 +11,11 @@
    (dataseq-instance :initarg :dataseq-instance :initform nil)
    (filtering-form-instance :initform nil)))
 
+(defun get-field-data-by-id (fields id)
+  (loop for i in fields 
+        if (equal (getf i :id) id)
+        do (return-from get-field-data-by-id i)))
+
 (defun object->simple-plist (object &rest filters)
   (loop for i in (c2mop:class-direct-slots (find-class (class-name  (class-of object)))) append 
         (let* ((slot (intern (string (c2mop:slot-definition-name i)) "KEYWORD"))
@@ -78,10 +83,6 @@
                                                     item)
                                                   (list filters)))))
                                    (mark-dirty widget))))
-    #+l(setf filters `(:value nil
-                       :id ,(write-to-string (gensym))
-                       :and nil
-                       :or nil))
     (setf filters nil))
 
   (if (getf args :dataseq-instance) 
@@ -114,8 +115,12 @@
            ((string= compare-type "like") " is like ")
            ((string= compare-type "not-like") " is not like ")
            ((string= compare-type "not-equal") " is not equal to ")
-           ((string= compare-type "more") " is more ")
-           ((string= compare-type "less") " is less ")
+           ((string= compare-type "greater-number") " is greater than ")
+           ((string= compare-type "less-number") " is less than ")
+           ((string= compare-type "greater-date") " is later ")
+           ((string= compare-type "less-date") " is earlier ")
+           ((string= compare-type "identical") " is ")
+           ((string= compare-type "not-identical") " is not ")
            (t (error (format nil "No such compare type - ~A" compare-type)))))
     (:b 
       (esc (get-filter-value-display-value widget field (intern (string-upcase compare-type) "KEYWORD") compare-value)))))
@@ -123,11 +128,19 @@
 (defmethod get-filter-value-display-value ((widget filtering-widget) field compare-type compare-value)
   (format nil "~A" compare-value))
 
-(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :more)) compare-value)
+(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :greater-date)) compare-value)
   (metatilities:format-date "%Y-%m-%d %H:%M:%S" compare-value))
 
-(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :less)) compare-value)
+(defmethod get-filter-value-display-value ((widget filtering-widget) field (compare-type (eql :less-date)) compare-value)
   (metatilities:format-date "%Y-%m-%d %H:%M:%S" compare-value))
+
+(defmethod get-filter-value-display-value ((widget filtering-widget) field-data (compare-type (eql :identical)) compare-value)
+  (if (getf field-data :pp-callback)
+    (funcall (getf field-data :pp-callback) :widget widget :field-data field-data :field-id (getf field-data :id) :value compare-value)
+    (format nil "< Please set :pp-callback to display value ~A properly >" (prin1-to-string compare-value))))
+
+(defmethod get-filter-value-display-value ((widget filtering-widget) field-data (compare-type (eql :not-identical)) compare-value)
+  (get-filter-value-display-value widget field-data :identical compare-value))
 
 (defun render-close-button (widget previous-filter-id)
   (with-html 

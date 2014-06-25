@@ -4,7 +4,7 @@
 
 (in-package :weblocks-filtering-widget-asd)
 
-(let ((dependencies (list :weblocks :cl-config :anaphora :cl-containers :weblocks-utils)))
+(let ((dependencies (list :weblocks :cl-config :anaphora :cl-containers :weblocks-utils :weblocks-twitter-bootstrap-application :weblocks-bootstrap-date-entry-presentation)))
    (if (find-package :clsql) 
     (push :clsql dependencies))
    (eval `(defsystem weblocks-filtering-widget

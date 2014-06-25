@@ -8,49 +8,85 @@
    (compare-type :initarg :compare-type)
    (compare-value :initform nil)))
 
-; Small fix, copied from weblocks/src/views/formview/formview.lisp
-(defmethod render-view-field ((field form-view-field) (view form-view)
-                                                      (widget filtering-form) presentation value obj 
-                                                      &rest args &key validation-errors field-info &allow-other-keys)
-  (declare (special *presentation-dom-id*))
-  (let* ((attributized-slot-name (if field-info
-                                   (attributize-view-field-name field-info)
-                                   (attributize-name (view-field-slot-name field))))
-         (validation-error (assoc field validation-errors))
-         (field-class (concatenate 'string (aif attributized-slot-name it "")
-                                   (when validation-error " item-not-validated")))
-         (*presentation-dom-id* (gen-id)))
-    (with-html
-      (:li :class field-class
-       (:label :class (attributize-presentation
-                        (view-field-presentation field))
-               :style "display:block;float:left;width:100px;"
-               :for *presentation-dom-id*
-               (:span :class "slot-name"
-                (:span :class "extra"
-                 (unless (empty-p (view-field-label field))
-                   (str (view-field-label field)))
-                 (let ((required-indicator nil))
-                   (when (and (form-view-field-required-p field)
-                              required-indicator)
-                     (htm (:em :class "required-slot"
-                           (if (eq t required-indicator)
-                             (str *default-required-indicator*)
-                             (str required-indicator))
-                           (str "&nbsp;"))))))))
-       (:div 
-         :style "float:left;width:200px;"
-         (apply #'render-view-field-value
-              value presentation
-              field view widget obj
-              :field-info field-info
-              args))
-       (when validation-error
-         (htm (:p :class "validation-error"
-               (:em
-                 (:span :class "validation-error-heading" "Error:&nbsp;")
-                 (str (format nil "~A" (cdr validation-error)))))))
-       (:div :style "clear:both")))))
+(defun filtering-form-view-field-wt (&key label-class id show-required-indicator required-indicator-label 
+                               show-field-label field-label validation-error content 
+                               field-class)
+  (with-html-to-string
+    (:li :class field-class
+     (:label :class label-class
+      :style "display:block;float:left;width:100px;"
+      :for id
+      (:span :class "slot-name"
+       (:span :class "extra"
+        (when show-field-label 
+          (str field-label)
+          (str ":&nbsp;")))))
+     (:div :style "float:left;width:200px;"
+      (str content))
+     (when validation-error
+       (htm (:p :class "validation-error"
+             (:em
+               (:span :class "validation-error-heading" "Error:&nbsp;")
+               (str validation-error)))))
+     (:div :style "clear:both"))))
+
+(deftemplate :form-view-field-wt 'filtering-form-view-field-wt 
+             :context-matches (lambda (&rest args &key widget &allow-other-keys)
+                                (if (subtypep (type-of widget) 'filtering-form)
+                                  20
+                                  0)))
+
+(defun filtering-form-view-field-for-bootstrap-wt (&key label-class id show-required-indicator required-indicator-label 
+                                                        show-field-label field-label validation-error content 
+                                                        field-class)
+  (with-html-to-string
+    (:style :type "text/css"
+            (str "
+                 div.submit {
+                 margin-top: 10px;
+                 }
+
+                 .filtering-data .control-group {
+                 margin-bottom: 0;
+                 }
+
+                 .filtering-data input, .filtering-data .value, .filtering-data select {
+                 margin-left: 25px;
+                 }
+
+                 .filtering-form .compare-value input {
+                 width: 550px;
+                 }
+
+                 .filtering-form .compare-value input.input-small {
+                 width: 90px;
+                 }
+                 "))
+    (:div :class (format nil "control-group ~A" field-class)
+     (:label :class (format nil "control-label ~A" label-class)
+      :style "display:block;float:left;"
+      :for id
+      (:span :class "slot-name"
+       (:span :class "extra"
+        (when show-field-label 
+          (str field-label)
+          (str ":&nbsp;")))))
+     (:div 
+       (str content))
+     (when validation-error
+       (htm (:p :class "validation-error"
+             (:em
+               (:span :class "validation-error-heading" "Error:&nbsp;")
+               (str validation-error)))))
+     (:div :style "clear:both"))))
+
+(when (find-package :weblocks-twitter-bootstrap-application)
+  (deftemplate :form-view-field-wt 'filtering-form-view-field-for-bootstrap-wt 
+               :application-class (intern "TWITTER-BOOTSTRAP-WEBAPP" "WEBLOCKS-TWITTER-BOOTSTRAP-APPLICATION")
+               :context-matches (lambda (&rest args &key widget &allow-other-keys)
+                                  (if (subtypep (type-of widget) 'filtering-form)
+                                    20
+                                    0))))
 
 (defun make-filtering-form (widget data &rest args)
   (let* ((presentation (cl-config:get-value 
@@ -71,7 +107,14 @@
                                  (,presentation :choices '(("is like ..." . "like") 
                                                            ("is equal to ..." . "equal")
                                                            ("is not like ..." . "not-like")
-                                                           ("is not equal to ..." . "not-equal")))
+                                                           ("is not equal to ..." . "not-equal")
+                                                           ("is more ..." . "greater-number")
+                                                           ("is less ..." . "less-number")
+                                                           ("is later ..." . "greater-date")
+                                                           ("is earlier ..." . "less-date")
+                                                           ("is identical ..." . "identical")
+                                                           ("is not identical ..." . "not-identical")
+                                                           ))
                                  :requiredp t)
                                (compare-value :label 
                                               ,(cl-config:get-value 
