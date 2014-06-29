@@ -114,6 +114,8 @@
                                                            ("is earlier ..." . "less-date")
                                                            ("is identical ..." . "identical")
                                                            ("is not identical ..." . "not-identical")
+                                                           ("is empty ..." . "null")
+                                                           ("is not empty ..." . "not-null")
                                                            ))
                                  :requiredp t)
                                (compare-value :label 

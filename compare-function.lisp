@@ -78,6 +78,12 @@
 (defun objects-not-identical-p (item1 item2)
   (not (objects-identical-p item1 item2)))
 
+(defun null-p (item1 item2)
+  (null item1))
+
+(defun not-null-p (item1 item2)
+  (not (null item1)))
+
 (defvar *compare-functions* (list 
                               :case-sensitive 
                               (list 
@@ -103,6 +109,8 @@
                                 :less-date #'safe<=)
                               :objects 
                               (list 
+                                :null #'null-p
+                                :not-null #'not-null-p
                                 :identical #'objects-identical-p
                                 :not-identical #'objects-not-identical-p)
                               :lists 

@@ -16,7 +16,9 @@
             (string= compare-type "greater-date")
             (string= compare-type "less-date")
             (string= compare-type "identical")
-            (string= compare-type "not-identical"))
+            (string= compare-type "not-identical")
+            (string= compare-type "null")
+            (string= compare-type "not-null"))
         (setf compare-type "like"))))
   (second (slot-value view 'weblocks::fields)))
 
@@ -64,6 +66,18 @@
 
 (defmethod get-value-for-field-and-comparator ((view filtering-form-view) field (comparator (eql :not-identical)))
   (get-value-for-field-and-comparator view field :identical))
+
+(defmethod get-value-for-field-and-comparator ((view filtering-form-view) field (comparator (eql :null)))
+  (make-instance 
+    'form-view-field
+    :hidep t
+    :slot-name 'compare-value 
+    :present-as (make-instance 'html-presentation) 
+    :reader (lambda (&rest args)
+              "")))
+
+(defmethod get-value-for-field-and-comparator ((view filtering-form-view) field (comparator (eql :not-null)))
+  (get-value-for-field-and-comparator view field :null))
 
 (defmethod view-fields :around ((view filtering-form-view))
   (let ((fields (call-next-method))

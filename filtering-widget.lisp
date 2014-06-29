@@ -121,6 +121,8 @@
            ((string= compare-type "less-date") " is earlier ")
            ((string= compare-type "identical") " is ")
            ((string= compare-type "not-identical") " is not ")
+           ((string= compare-type "null") " is ")
+           ((string= compare-type "not-null") " is not ")
            (t (error (format nil "No such compare type - ~A" compare-type)))))
     (:b 
       (esc (get-filter-value-display-value widget field (intern (string-upcase compare-type) "KEYWORD") compare-value)))))
