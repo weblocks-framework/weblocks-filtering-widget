@@ -1,7 +1,8 @@
 (in-package :weblocks-filtering-widget)
 
 (defwidget filtering-widget (widget)
-  ((filters :initform nil)
+  ((hidden-filter-lambda :initarg :hidden-filter-lambda)
+   (filters :initform nil)
    (filter-form-visible :initform t)
    (filter-form-position :initform nil)
    (add-filter-action)
@@ -320,10 +321,11 @@
   (compare (slot-value widget 'filters) item 
            (form-fields-accessors-list widget)))
 
-(defun filtering-on-query (filters-thunk accessors-thunk)
+(defun filtering-on-query (filters-thunk accessors-thunk filter-lambda-thunk)
   (lambda (obj order limit &key countp)
     (let* ((filters (funcall filters-thunk))
            (accessors (funcall accessors-thunk))
+           (filter-lambda (funcall filter-lambda-thunk))
            (values 
              (if (clsql-poweredp :store (dataseq-class-store obj))
                (funcall 
@@ -337,9 +339,15 @@
                (funcall 
                  (if countp #'count-by #'find-by)
                  (dataseq-data-class obj)
-                 (when  filters
-                   (lambda (item)
-                     (compare filters item accessors)))
+                 (if filters
+                   (if filter-lambda
+                     (lambda (item)
+                       (and 
+                         (funcall filter-lambda item)
+                         (compare filters item accessors)))
+                     (lambda (item)
+                       (compare filters item accessors)))
+                   filter-lambda)
                  :order-by order
                  :range limit 
                  :store (dataseq-class-store obj)))))
@@ -348,10 +356,14 @@
 (defmethod on-query-function ((widget filtering-widget))
   (filtering-on-query 
     (lambda ()
-      (slot-value widget 'filters)) 
+      (append 
+        (slot-value widget 'filters))) 
     (lambda ()
       (unless (clsql-poweredp 
                 :store 
                 (dataseq-class-store 
                   (slot-value widget 'dataseq-instance)))
-        (form-fields-accessors-list widget)))))
+        (form-fields-accessors-list widget)))
+    (lambda ()
+      (and (slot-boundp widget 'hidden-filter-lambda)
+           (slot-value widget 'hidden-filter-lambda)))))
