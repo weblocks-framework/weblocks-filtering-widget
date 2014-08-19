@@ -88,40 +88,43 @@
                                     20
                                     0))))
 
+(defun make-filtering-form-view (&key caption presentation field-choices)
+  (eval `(defview nil 
+                  (:type filtering-form :persistp nil :buttons '((:submit . "Search") (:cancel . "Cancel")) 
+                   :caption ,caption)
+                  (field :label "Search for ..." :present-as (,presentation :choices ',field-choices)
+                         :requiredp t)
+                  (compare-type 
+                    :label ,(cl-config:get-value 
+                              :weblocks-filtering-widget.filtering-form-compare-type-caption
+                              :default "which ..")
+                    :present-as 
+                    (,presentation :choices '(("is like ..." . "like") 
+                                              ("is equal to ..." . "equal")
+                                              ("is not like ..." . "not-like")
+                                              ("is not equal to ..." . "not-equal")
+                                              ("is more ..." . "greater-number")
+                                              ("is less ..." . "less-number")
+                                              ("is later ..." . "greater-date")
+                                              ("is earlier ..." . "less-date")
+                                              ("is identical ..." . "identical")
+                                              ("is not identical ..." . "not-identical")
+                                              ("is empty ..." . "null")
+                                              ("is not empty ..." . "not-null")
+                                              ))
+                    :requiredp t)
+                  (compare-value :label 
+                                 ,(cl-config:get-value 
+                                    :weblocks-filtering-widget.filtering-form-compare-value-caption
+                                    :default "value ...") :present-as input))))
+
 (defun make-filtering-form (widget data &rest args)
   (let* ((presentation (cl-config:get-value 
                          :weblocks-filtering-widget.filtering-form-fields-presentation 
                          :default 'links-choices))
-         (view (eval `(defview nil 
-                               (:type filtering-form :persistp nil :buttons '((:submit . "Search") (:cancel . "Cancel")) 
-                                :caption ,(filtering-widget-form-title widget))
-                               (field :label ,(cl-config:get-value 
-                                                :weblocks-filtering-widget.filtering-form-field-caption 
-                                                :default "Search for ...") :present-as (,presentation :choices ',(compare-field-form-choices widget))
-                                      :requiredp t)
-                               (compare-type 
-                                 :label ,(cl-config:get-value 
-                                           :weblocks-filtering-widget.filtering-form-compare-type-caption
-                                           :default "which ..")
-                                 :present-as 
-                                 (,presentation :choices '(("is like ..." . "like") 
-                                                           ("is equal to ..." . "equal")
-                                                           ("is not like ..." . "not-like")
-                                                           ("is not equal to ..." . "not-equal")
-                                                           ("is more ..." . "greater-number")
-                                                           ("is less ..." . "less-number")
-                                                           ("is later ..." . "greater-date")
-                                                           ("is earlier ..." . "less-date")
-                                                           ("is identical ..." . "identical")
-                                                           ("is not identical ..." . "not-identical")
-                                                           ("is empty ..." . "null")
-                                                           ("is not empty ..." . "not-null")
-                                                           ))
-                                 :requiredp t)
-                               (compare-value :label 
-                                              ,(cl-config:get-value 
-                                                 :weblocks-filtering-widget.filtering-form-compare-value-caption
-                                                 :default "value ...") :present-as input))))
+         (view (make-filtering-form-view :caption (filtering-widget-form-title widget)
+                                         :presentation presentation 
+                                         :field-choices (compare-field-form-choices widget)))
          (data (apply #'make-instance (list* 'filtering-data data)))
          (form 
            (progn 
