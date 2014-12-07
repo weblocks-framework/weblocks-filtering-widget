@@ -3,7 +3,8 @@
 (defwidget filtering-widget (widget)
   ((hidden-filter-lambda :initarg :hidden-filter-lambda)
    (filters :initform nil)
-   (filter-form-visible :initform t)
+   (filter-form-visible :initform t 
+                        :affects-dirty-status-p t)
    (filter-form-position :initform nil)
    (add-filter-action)
    (remove-filter-action)
@@ -101,7 +102,9 @@
             (:div :style "padding:5px;float:left;"
              (render-filters widget filters)))))
         (filter-form-visible (render-filter-form widget)) 
-        (t (render-link (lambda (&rest args) (setf filter-form-visible t)) "Add filter")))
+        (t (render-link (lambda (&rest args) 
+                          (mark-dirty widget)
+                          (setf filter-form-visible t)) "Add filter")))
       (:div :style "clear:both"))))
 
 (defmethod render-filters ((widget filtering-widget) filters)
