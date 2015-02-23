@@ -22,4 +22,12 @@ Usage is
      :caption "Last name"
      :accessor #'person-last-name))))
 
+or much simple
+
+(let ((dataseq-instance (make-instance 'gridedit)))
+ (make-instance 
+  'weblocks-filtering-widget:filtering-widget 
+  :dataseq-instance dataseq-instance
+  :form-fields (weblocks-filtering-widget:all-filters-for-model 'test-model)))
+
 Currently depends on weblocks-utils 0.2.2, cl-config 0.1.0, weblocks 0.8.8, needs weblocks-selenium-tests 0.2.2 for tests

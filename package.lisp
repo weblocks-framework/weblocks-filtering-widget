@@ -13,5 +13,6 @@
            #:*compare-functions* 
            #:compare-type 
            #:compare-value 
-           #:links-choices-presentation))
+           #:links-choices-presentation 
+           #:all-filters-for-model))
 

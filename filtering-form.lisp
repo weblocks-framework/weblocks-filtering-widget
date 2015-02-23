@@ -141,3 +141,9 @@
       (setf filtering-widget-instance widget)
       (setf (slot-value (dataform-form-view form) 'form) form)
       form)))
+
+(defun all-filters-for-model (model-class)
+  (loop for i in (weblocks-stores:class-visible-slots model-class) 
+        collect (list :id (alexandria:make-keyword (c2mop:slot-definition-name i))
+                      :caption (humanize-name (c2mop:slot-definition-name i))
+                      :slot (c2mop:slot-definition-name i))))
