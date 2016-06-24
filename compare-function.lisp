@@ -35,7 +35,7 @@
   (or (integerp number)
       (ppcre:scan "\\d+" number)))
 
-(defun force-string (obj)
+(defmethod force-string (obj)
   (cond 
     ((integerp obj) (write-to-string obj))
     ((stringp obj) obj)

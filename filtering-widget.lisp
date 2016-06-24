@@ -251,6 +251,39 @@
   (setf (slot-value widget 'filter-form-position) nil)
   (mark-dirty widget))
 
+(defun filtering-form-on-success (widget)
+  (lambda (form object)
+    (with-slots (filter-form-position filters) widget 
+      (let* ((new-filter-value (object->simple-plist object))
+             (new-filter (list :value  nil
+                               :id (write-to-string (gensym))
+                               :and nil 
+                               :or nil))
+             (key (if filter-form-position (intern (cdr filter-form-position) "KEYWORD") :and)))
+        (if (equal key :top-or)
+          (progn 
+            (setf (getf new-filter :or) (list filters))
+            (setf filters new-filter))
+          (progn
+
+            (setf (getf new-filter-value :field) (intern (getf new-filter-value :field) "KEYWORD")) 
+            (setf (getf new-filter :value) new-filter-value) 
+
+            (cond 
+              ((not (getf filters :value)) (setf filters new-filter))
+              (t
+               (setf filters 
+                     (car (map-filters 
+                            (lambda (item)
+                              (if (string= (string (getf item :id)) (car filter-form-position))
+                                (progn
+                                  (push new-filter (getf item key))
+                                  item)
+                                item))
+                            (list filters))))))))))
+    (hide-filter-form widget)
+    (mark-dirty widget)))
+
 (defmethod get-filter-form ((widget filtering-widget))
   (with-slots (filtering-form-instance) widget
     (or 
@@ -259,37 +292,7 @@
   (make-filtering-form 
     widget
     (list :field (getf (first (slot-value widget 'form-fields)) :id) :compare-type "like")
-    :on-success (lambda (form object)
-                  (with-slots (filter-form-position filters) widget 
-                    (let* ((new-filter-value (object->simple-plist object))
-                           (new-filter (list :value  nil
-                                             :id (write-to-string (gensym))
-                                             :and nil 
-                                             :or nil))
-                           (key (if filter-form-position (intern (cdr filter-form-position) "KEYWORD") :and)))
-                      (if (equal key :top-or)
-                        (progn 
-                          (setf (getf new-filter :or) (list filters))
-                          (setf filters new-filter))
-                        (progn
-
-                          (setf (getf new-filter-value :field) (intern (getf new-filter-value :field) "KEYWORD")) 
-                          (setf (getf new-filter :value) new-filter-value) 
-
-                          (cond 
-                            ((not (getf filters :value)) (setf filters new-filter))
-                            (t
-                             (setf filters 
-                                   (car (map-filters 
-                                          (lambda (item)
-                                            (if (string= (string (getf item :id)) (car filter-form-position))
-                                              (progn
-                                                (push new-filter (getf item key))
-                                                item)
-                                              item))
-                                          (list filters))))))))))
-                  (hide-filter-form widget)
-                  (mark-dirty widget))
+    :on-success (filtering-form-on-success widget)
     :on-cancel (lambda (form)
                            (hide-filter-form widget)))))))
 
