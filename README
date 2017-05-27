@@ -1,10 +1,23 @@
-A filtering widget for weblocks.
+A filtering widget for weblocks. Powerful Weblocks widget for filtering data.
 
 Allows to use complex filters for equality, similarity for text values.
 Complex means that you can add "AND", "OR" conditions to filters in any way you want.
 Allows to use filters of any complexity in perspective.
 
-Works with gridedit widgets at this time.
+Let me explain what I mean "complex filters". 
+Usually web catalogs have filters like "select all items in A category" or "select items for period from B to C". 
+And filters like "select all items that are included in A category but excluded in B category" are usually not used.
+Simple filters look like "filter1 AND filter2 AND filter3" or "filter1 OR filter2 OR filter3".
+Usually you can't even do filtering like "filter1 AND filter2 OR filter3" because it is not linear expression. 
+In fact this expression means "(filter1 AND filter2) OR filter3".
+
+And complex filters look like "filter1 AND (filter2 OR filter3) AND (filter4 OR filter5)".
+Filtering widget allows to use even more complex filters "filter1 AND (filter2 OR (filter3 AND (filter4 OR filter5)))".
+
+So you can combine and nest filtering criterias. But that's not all. Criteria functionality is also flexible in Weblocks Filtering Widget.
+It is very easy to configure widget for filtering by dates, numbers, strings, related records etc.
+
+Filtering widget works with gridedit widgets at this time.
 
 Usage is 
 
