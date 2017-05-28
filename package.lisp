@@ -14,5 +14,6 @@
            #:compare-type 
            #:compare-value 
            #:links-choices-presentation 
-           #:all-filters-for-model))
+           #:all-filters-for-model 
+           #:force-string))
 

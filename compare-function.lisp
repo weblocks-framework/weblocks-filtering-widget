@@ -40,7 +40,7 @@
     ((integerp obj) (write-to-string obj))
     ((stringp obj) obj)
     ((null obj) "")
-    (t (error "Don't know how to force string format for ~A" obj))))
+    (t (error "Don't know how to force string format for ~A. Please define method weblocks-filtering-widget:force-string for this object." obj))))
 
 (defun force-integer (string-or-number)
   (cond 
